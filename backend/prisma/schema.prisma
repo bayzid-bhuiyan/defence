@@ -1,0 +1,171 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextIndex", "fullTextSearch"]
+  binaryTargets   = ["native", "rhel-openssl-1.0.x", "rhel-openssl-3.0.x", "debian-openssl-1.0.x"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                Int         @id @default(autoincrement())
+  googleId          String?     @unique
+  facebookId        String?     @unique 
+  email             String      @unique
+  password          String?     
+  resetCode         String?     
+  resetCodeExpiry   DateTime?   
+  name              String
+  avatar            String?     
+  isAdmin           Boolean     @default(false)
+  isBlocked         Boolean     @default(false)
+  createdAt         DateTime    @default(now())
+
+  inventories       Inventory[] 
+  sharedInventories Inventory[] @relation("UserAccess") 
+  comments          Comment[]
+  likes             Like[]
+}
+
+model Inventory {
+  id                   Int       @id @default(autoincrement())
+  title                String
+  description          String?   @db.Text 
+  category             String 
+  imageUrl             String? 
+  version              Int       @default(1) 
+  createdAt            DateTime  @default(now())
+
+  customIdFormat       Json? 
+
+  custom_string1_state Boolean   @default(false)
+  custom_string1_name  String?
+  custom_string2_state Boolean   @default(false)
+  custom_string2_name  String?
+  custom_string3_state Boolean   @default(false)
+  custom_string3_name  String?
+
+  custom_text1_state   Boolean   @default(false)
+  custom_text1_name    String?
+  custom_text2_state   Boolean   @default(false)
+  custom_text2_name    String?
+  custom_text3_state   Boolean   @default(false)
+  custom_text3_name    String?
+
+  custom_int1_state    Boolean   @default(false)
+  custom_int1_name     String?
+  custom_int2_state    Boolean   @default(false)
+  custom_int2_name     String?
+  custom_int3_state    Boolean   @default(false)
+  custom_int3_name     String?
+
+  custom_link1_state   Boolean   @default(false)
+  custom_link1_name    String?
+  custom_link2_state   Boolean   @default(false)
+  custom_link2_name    String?
+  custom_link3_state   Boolean   @default(false)
+  custom_link3_name    String?
+
+  custom_bool1_state   Boolean   @default(false)
+  custom_bool1_name    String?
+  custom_bool2_state   Boolean   @default(false)
+  custom_bool2_name    String?
+  custom_bool3_state   Boolean   @default(false)
+  custom_bool3_name    String?
+
+  custom_date1_state   Boolean   @default(false)
+  custom_date1_name    String?
+  custom_date2_state   Boolean   @default(false)
+  custom_date2_name    String?
+  custom_date3_state   Boolean   @default(false)
+  custom_date3_name    String?
+
+  author               User      @relation(fields: [authorId], references: [id])
+  authorId             Int
+
+  accessList           User[]    @relation("UserAccess")
+
+  items                Item[]
+  comments             Comment[]
+  tags                 Tag[]
+
+  @@fulltext([title, description])
+}
+
+model Item {
+  id                   Int       @id @default(autoincrement())
+  name                 String
+  quantity             Int       @default(1)
+
+  customId             String? 
+  version              Int       @default(1) 
+  createdAt            DateTime  @default(now())
+
+  custom_string1_value String?
+  custom_string2_value String?
+  custom_string3_value String?
+
+  custom_text1_value   String?   @db.Text
+  custom_text2_value   String?   @db.Text
+  custom_text3_value   String?   @db.Text
+
+  custom_int1_value    Int?
+  custom_int2_value    Int?
+  custom_int3_value    Int?
+
+  custom_link1_value   String?
+  custom_link2_value   String?
+  custom_link3_value   String?
+
+  custom_bool1_value   Boolean?
+  custom_bool2_value   Boolean?
+  custom_bool3_value   Boolean?
+
+  custom_date1_value   DateTime?
+  custom_date2_value   DateTime?
+  custom_date3_value   DateTime?
+
+  inventory            Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  inventoryId          Int
+
+  tags                 Tag[]
+  likes                Like[]
+
+  @@unique([inventoryId, customId])
+  @@fulltext([name])
+}
+
+model Tag {
+  id          Int         @id @default(autoincrement())
+  name        String      @unique
+
+  inventories Inventory[]
+  items       Item[]
+}
+
+model Comment {
+  id          Int       @id @default(autoincrement())
+  content     String    @db.Text
+  createdAt   DateTime  @default(now())
+
+  author      User      @relation(fields: [authorId], references: [id])
+  authorId    Int
+
+  inventory   Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  inventoryId Int
+}
+
+model Like {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+
+  item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId    Int
+
+  @@unique([userId, itemId])
+}
