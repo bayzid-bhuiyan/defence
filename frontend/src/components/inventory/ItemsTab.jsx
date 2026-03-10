@@ -12,9 +12,15 @@ const ItemsTab = ({ inventory, hasWriteAccess, currentUser }) => {
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Toolbar State
   const [selectedItemId, setSelectedItemId] = useState(null);
+  
+  // Modal State
   const [showModal, setShowModal] = useState(false);
-  const [modalMode, setModalMode] = useState('create'); 
+  const [modalMode, setModalMode] = useState('create'); // 'create' or 'edit'
+  
+  // Form State
   const [formData, setFormData] = useState({ name: '', quantity: 1, customFields: {} });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -32,8 +38,10 @@ const ItemsTab = ({ inventory, hasWriteAccess, currentUser }) => {
   useEffect(() => {
     fetchItems();
   }, [inventory.id]);
+
+  // --- Toolbar Actions ---
   const handleSelectRow = (id) => {
-    setSelectedItemId(selectedItemId === id ? null : id); 
+    setSelectedItemId(selectedItemId === id ? null : id); // Toggle selection
   };
 
   const openCreateModal = () => {
@@ -48,7 +56,8 @@ const ItemsTab = ({ inventory, hasWriteAccess, currentUser }) => {
     setFormData({
       name: itemToEdit.name,
       quantity: itemToEdit.quantity,
-      customFields: itemToEdit.customFields || {} 
+      customFields: itemToEdit.customFields || {},
+      version: itemToEdit.version // <--- ADDED: Include the version for optimistic locking
     });
     setShowModal(true);
   };
@@ -63,6 +72,8 @@ const ItemsTab = ({ inventory, hasWriteAccess, currentUser }) => {
       alert(t('itemsTab.alerts.delete_failed', "Failed to delete item."));
     }
   };
+
+  // --- Like Action ---
   const handleLike = async (e, itemId) => {
     e.stopPropagation(); 
     try {
@@ -76,6 +87,8 @@ const ItemsTab = ({ inventory, hasWriteAccess, currentUser }) => {
       }
     }
   };
+
+  // --- Form Submission ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -95,6 +108,8 @@ const ItemsTab = ({ inventory, hasWriteAccess, currentUser }) => {
       setIsSubmitting(false);
     }
   };
+
+  // --- Dynamic Custom Field Handler ---
   const handleCustomFieldChange = (fieldId, value, type) => {
     let parsedValue = value;
     if (type === 'number') parsedValue = value === '' ? '' : Number(value);
@@ -109,6 +124,8 @@ const ItemsTab = ({ inventory, hasWriteAccess, currentUser }) => {
   if (loading) return <div className="text-center p-5"><Spinner animation="border" variant={isDark ? "light" : "primary"} /></div>;
 
   const visibleCustomFields = inventory.customFieldDefs?.filter(f => f.showInTable) || [];
+
+
   const toolbarBgClass = isDark ? 'bg-dark border-secondary text-white' : 'bg-light';
   const mutedColor = isDark ? 'text-light opacity-75' : 'text-muted';
   const inputBgClass = isDark ? 'bg-dark text-white border-secondary' : 'bg-white text-dark';
@@ -117,6 +134,7 @@ const ItemsTab = ({ inventory, hasWriteAccess, currentUser }) => {
 
   return (
     <div className="p-2">
+  
       {hasWriteAccess && (
         <div className={`d-flex p-2 rounded border mb-3 shadow-sm align-items-center flex-wrap gap-2 ${toolbarBgClass}`}>
           <Button variant="success" size="sm" onClick={openCreateModal}>
@@ -142,6 +160,7 @@ const ItemsTab = ({ inventory, hasWriteAccess, currentUser }) => {
           </span>
         </div>
       )}
+
       <div className={`table-responsive border rounded shadow-sm ${isDark ? 'border-secondary' : ''}`}>
         <Table hover variant={tableVariant} className="mb-0 align-middle">
           <thead className={isDark ? 'table-dark' : 'table-dark'}>
