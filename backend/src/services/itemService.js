@@ -85,7 +85,7 @@ class ItemService {
       name: itemData.name,
       quantity: parseInt(itemData.quantity) || 1,
       customId: generatedId,
-      version: 1, 
+      version: 1,
       tags: tagsQuery,
       ...mappedCustomFields 
     };
@@ -117,7 +117,6 @@ class ItemService {
           break;
         case 'SEQUENCE':
           if (sequenceCount === null) {
-       
             const count = await prisma.item.count({ where: { inventoryId: parseInt(inventoryId) } });
             sequenceCount = count + 1;
           }
@@ -156,7 +155,6 @@ class ItemService {
 
     const existingIds = new Set(existingItems.map(item => item.customId));
 
-
     let testId = candidates.find(candidate => !existingIds.has(candidate));
 
     if (!testId) {
@@ -190,13 +188,12 @@ class ItemService {
       throw new Error('Unauthorized: You do not have write access to this item.');
     }
 
-
     if (updateData.version === undefined) {
       throw new Error('Version is required to update this item.');
     }
     
     const currentVersion = updateData.version;
-    delete updateData.version; 
+    delete updateData.version;
 
     let tagsQuery = undefined;
     if (updateData.tags && Array.isArray(updateData.tags)) {
@@ -224,12 +221,10 @@ class ItemService {
     }
 
     try {
-   
       const updatedItem = await itemRepository.updateWithVersion(itemId, currentVersion, data);
       updatedItem.customFields = this._mapDBValuesToCustomFields(updatedItem);
       return updatedItem;
     } catch (error) {
-   (Conflict!)
       if (error.code === 'P2025') {
         throw new Error('Conflict: Someone else updated this item while you were editing. Please refresh to see their changes.');
       }
