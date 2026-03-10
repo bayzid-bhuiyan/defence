@@ -14,6 +14,7 @@ class ItemRepository {
       }
     });
   }
+
   async findAll(filters = {}) {
     return await prisma.item.findMany({
       where: filters,
@@ -24,6 +25,7 @@ class ItemRepository {
       }
     });
   }
+
   async findById(id) {
     return await prisma.item.findUnique({
       where: { id: parseInt(id) },
@@ -37,6 +39,7 @@ class ItemRepository {
     });
   }
 
+
   async update(id, data) {
     return await prisma.item.update({
       where: { id: parseInt(id) },
@@ -47,6 +50,26 @@ class ItemRepository {
       }
     });
   }
+
+
+  async updateWithVersion(id, currentVersion, data) {
+    return await prisma.item.update({
+      where: { 
+        id: parseInt(id),
+        version: parseInt(currentVersion) 
+      },
+      data: {
+        ...data,
+        version: { increment: 1 } 
+      },
+      include: {
+        tags: true,
+        likes: true, 
+      }
+    });
+  }
+
+  // 5. Delete an item
   async delete(id) {
     return await prisma.item.delete({
       where: { id: parseInt(id) }
