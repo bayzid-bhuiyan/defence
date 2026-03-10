@@ -117,7 +117,7 @@ class ItemService {
           break;
         case 'SEQUENCE':
           if (sequenceCount === null) {
-
+       
             const count = await prisma.item.count({ where: { inventoryId: parseInt(inventoryId) } });
             sequenceCount = count + 1;
           }
@@ -145,6 +145,7 @@ class ItemService {
     for (let i = 1; i <= 20; i++) {
       candidates.push(`${finalId}${separator}${String(i).padStart(3, '0')}`);
     }
+
     const existingItems = await prisma.item.findMany({
       where: {
         inventoryId: parseInt(inventoryId),
@@ -155,8 +156,8 @@ class ItemService {
 
     const existingIds = new Set(existingItems.map(item => item.customId));
 
-    let testId = candidates.find(candidate => !existingIds.has(candidate));
 
+    let testId = candidates.find(candidate => !existingIds.has(candidate));
 
     if (!testId) {
       testId = `${finalId}${separator}${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
@@ -189,13 +190,13 @@ class ItemService {
       throw new Error('Unauthorized: You do not have write access to this item.');
     }
 
-    if (updateData.version !== undefined) {
-      if (item.version !== parseInt(updateData.version)) {
-         throw new Error('Conflict: Someone else updated this item while you were editing. Please refresh.');
-      }
-    
-      updateData.version = item.version + 1;
+
+    if (updateData.version === undefined) {
+      throw new Error('Version is required to update this item.');
     }
+    
+    const currentVersion = updateData.version;
+    delete updateData.version; 
 
     let tagsQuery = undefined;
     if (updateData.tags && Array.isArray(updateData.tags)) {
@@ -222,9 +223,18 @@ class ItemService {
       delete data.customFields; 
     }
 
-    const updatedItem = await itemRepository.update(itemId, data);
-    updatedItem.customFields = this._mapDBValuesToCustomFields(updatedItem);
-    return updatedItem;
+    try {
+   
+      const updatedItem = await itemRepository.updateWithVersion(itemId, currentVersion, data);
+      updatedItem.customFields = this._mapDBValuesToCustomFields(updatedItem);
+      return updatedItem;
+    } catch (error) {
+   (Conflict!)
+      if (error.code === 'P2025') {
+        throw new Error('Conflict: Someone else updated this item while you were editing. Please refresh to see their changes.');
+      }
+      throw error;
+    }
   }
 
   async deleteItem(userId, itemId) {
