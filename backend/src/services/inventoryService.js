@@ -73,13 +73,28 @@ class InventoryService {
       try { parsedTags = typeof data.tags === 'string' ? JSON.parse(data.tags) : data.tags; } 
       catch (e) { console.error("Tag parsing error:", e); }
     }
+    
     const validTagIds = [];
-    for (const tagName of parsedTags) {
-      let existingTag = await prisma.tag.findFirst({ where: { name: tagName } });
-      if (!existingTag) {
-        existingTag = await prisma.tag.create({ data: { name: tagName } });
+    if (parsedTags.length > 0) {
+      const existingTags = await prisma.tag.findMany({
+        where: { name: { in: parsedTags } }
+      });
+      
+      const existingTagNames = existingTags.map(t => t.name);
+      const missingTags = parsedTags.filter(name => !existingTagNames.includes(name));
+      
+      if (missingTags.length > 0) {
+        await prisma.tag.createMany({
+          data: missingTags.map(name => ({ name }))
+        });
+        
+        const newTags = await prisma.tag.findMany({
+          where: { name: { in: missingTags } }
+        });
+        existingTags.push(...newTags);
       }
-      validTagIds.push({ id: existingTag.id });
+      
+      validTagIds.push(...existingTags.map(t => ({ id: t.id })));
     }
 
     const inventoryData = {
@@ -102,6 +117,7 @@ class InventoryService {
   async getAllInventories(filters, skip, take) {
     return await inventoryRepository.findAll(filters, skip, take);
   }
+
   async getSharedInventories(userId) {
     const inventories = await inventoryRepository.findSharedWithUser(userId);
     return inventories.map(inv => {
@@ -109,6 +125,7 @@ class InventoryService {
       return inv;
     });
   }
+
   async getInventoryById(id) {
     const inventory = await prisma.inventory.findUnique({
       where: { id: parseInt(id) },
@@ -152,6 +169,7 @@ class InventoryService {
       finalUpdateData = { ...finalUpdateData, ...mappedFields };
       delete finalUpdateData.customFieldDefs; 
     }
+    
     if (finalUpdateData.tags !== undefined) {
       let parsedTags = [];
       try {
@@ -161,14 +179,31 @@ class InventoryService {
       } catch (e) {
         console.error("Tag parsing error during update:", e);
       }
+      
+
       const validTagIds = [];
-      for (const tagName of parsedTags) {
-        let existingTag = await prisma.tag.findFirst({ where: { name: tagName } });
-        if (!existingTag) {
-          existingTag = await prisma.tag.create({ data: { name: tagName } });
+      if (parsedTags.length > 0) {
+        const existingTags = await prisma.tag.findMany({
+          where: { name: { in: parsedTags } }
+        });
+        
+        const existingTagNames = existingTags.map(t => t.name);
+        const missingTags = parsedTags.filter(name => !existingTagNames.includes(name));
+        
+        if (missingTags.length > 0) {
+          await prisma.tag.createMany({
+            data: missingTags.map(name => ({ name }))
+          });
+          
+          const newTags = await prisma.tag.findMany({
+            where: { name: { in: missingTags } }
+          });
+          existingTags.push(...newTags);
         }
-        validTagIds.push({ id: existingTag.id });
+        
+        validTagIds.push(...existingTags.map(t => ({ id: t.id })));
       }
+
       finalUpdateData.tags = {
         set: validTagIds 
       };
@@ -186,6 +221,7 @@ class InventoryService {
       throw error; 
     }
   }
+
   async grantAccess(inventoryId, ownerId, targetEmail) {
     const inventory = await inventoryRepository.findById(inventoryId);
     if (!inventory) throw new Error('Inventory not found');
@@ -202,6 +238,7 @@ class InventoryService {
     updated.customFieldDefs = this._mapDBFieldsToCustomFieldDefs(updated);
     return updated;
   }
+
   async revokeAccess(inventoryId, ownerId, targetUserId) {
     const inventory = await inventoryRepository.findById(inventoryId);
     if (!inventory) throw new Error('Inventory not found');
@@ -215,6 +252,7 @@ class InventoryService {
     updated.customFieldDefs = this._mapDBFieldsToCustomFieldDefs(updated);
     return updated;
   }
+
   async deleteInventory(id, userId, userRole) {
     const inventory = await inventoryRepository.findById(id);
     if (!inventory) throw new Error('Inventory not found');
