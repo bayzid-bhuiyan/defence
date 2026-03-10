@@ -1,16 +1,15 @@
 const prisma = require('../config/db');
 
 class ItemRepository {
-  
   async create(inventoryId, data) {
     return await prisma.item.create({
       data: {
         ...data,
-        inventoryId: parseInt(inventoryId), 
+        inventoryId: parseInt(inventoryId),
       },
       include: {
-        tags: true, 
-        likes: true, 
+        tags: true,
+        likes: true,
       }
     });
   }
@@ -21,7 +20,7 @@ class ItemRepository {
       orderBy: { createdAt: 'desc' },
       include: {
         tags: true,
-        likes: true, 
+        likes: true,
       }
     });
   }
@@ -31,14 +30,13 @@ class ItemRepository {
       where: { id: parseInt(id) },
       include: {
         tags: true,
-        likes: true, 
+        likes: true,
         inventory: {
-            select: { id: true, title: true, authorId: true } 
+            select: { id: true, title: true, authorId: true }
         }
       }
     });
   }
-
 
   async update(id, data) {
     return await prisma.item.update({
@@ -51,16 +49,15 @@ class ItemRepository {
     });
   }
 
-
   async updateWithVersion(id, currentVersion, data) {
     return await prisma.item.update({
       where: { 
         id: parseInt(id),
-        version: parseInt(currentVersion) 
+        version: parseInt(currentVersion)
       },
       data: {
         ...data,
-        version: { increment: 1 } 
+        version: { increment: 1 }
       },
       include: {
         tags: true,
@@ -69,7 +66,6 @@ class ItemRepository {
     });
   }
 
-  // 5. Delete an item
   async delete(id) {
     return await prisma.item.delete({
       where: { id: parseInt(id) }
