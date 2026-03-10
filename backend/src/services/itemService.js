@@ -85,6 +85,7 @@ class ItemService {
       name: itemData.name,
       quantity: parseInt(itemData.quantity) || 1,
       customId: generatedId,
+      version: 1, 
       tags: tagsQuery,
       ...mappedCustomFields 
     };
@@ -94,6 +95,7 @@ class ItemService {
     newItem.customFields = this._mapDBValuesToCustomFields(newItem);
     return newItem;
   }
+
   async generateCustomId(inventoryId, format) {
     if (!format) return crypto.randomBytes(4).toString('hex').toUpperCase();
 
@@ -115,6 +117,7 @@ class ItemService {
           break;
         case 'SEQUENCE':
           if (sequenceCount === null) {
+
             const count = await prisma.item.count({ where: { inventoryId: parseInt(inventoryId) } });
             sequenceCount = count + 1;
           }
@@ -136,29 +139,32 @@ class ItemService {
     }
 
     if (!finalId) finalId = crypto.randomBytes(4).toString('hex').toUpperCase();
-    let isUnique = false;
-    let testId = finalId;
-    let counter = 1;
 
-    while (!isUnique) {
-      const existingItem = await prisma.item.findFirst({
-        where: { 
-          inventoryId: parseInt(inventoryId), 
-          customId: testId 
-        }
-      });
+    const candidates = [finalId];
+    const separator = finalId.endsWith('-') ? '' : '-';
+    for (let i = 1; i <= 20; i++) {
+      candidates.push(`${finalId}${separator}${String(i).padStart(3, '0')}`);
+    }
+    const existingItems = await prisma.item.findMany({
+      where: {
+        inventoryId: parseInt(inventoryId),
+        customId: { in: candidates }
+      },
+      select: { customId: true }
+    });
 
-      if (!existingItem) {
-        isUnique = true;
-      } else {
-        const separator = finalId.endsWith('-') ? '' : '-';
-        testId = `${finalId}${separator}${String(counter).padStart(3, '0')}`;
-        counter++;
-      }
+    const existingIds = new Set(existingItems.map(item => item.customId));
+
+    let testId = candidates.find(candidate => !existingIds.has(candidate));
+
+
+    if (!testId) {
+      testId = `${finalId}${separator}${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
     }
 
     return testId;
   }
+
   async getItemsByInventory(inventoryId) {
     const items = await itemRepository.findAll({ inventoryId: parseInt(inventoryId) });
     return items.map(item => {
@@ -166,6 +172,7 @@ class ItemService {
       return item;
     });
   }
+
   async updateItem(userId, itemId, updateData) {
     const item = await prisma.item.findUnique({
         where: { id: parseInt(itemId) },
@@ -180,6 +187,14 @@ class ItemService {
 
     if (!isAuthor && !hasAccess) {
       throw new Error('Unauthorized: You do not have write access to this item.');
+    }
+
+    if (updateData.version !== undefined) {
+      if (item.version !== parseInt(updateData.version)) {
+         throw new Error('Conflict: Someone else updated this item while you were editing. Please refresh.');
+      }
+    
+      updateData.version = item.version + 1;
     }
 
     let tagsQuery = undefined;
@@ -211,6 +226,7 @@ class ItemService {
     updatedItem.customFields = this._mapDBValuesToCustomFields(updatedItem);
     return updatedItem;
   }
+
   async deleteItem(userId, itemId) {
     const item = await prisma.item.findUnique({
         where: { id: parseInt(itemId) },
